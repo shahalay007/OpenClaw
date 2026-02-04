@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalshi Arbitrage Dashboard - Live</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .stat-card.arbitrage .value {
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        .opportunities-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .opportunities-header {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .update-time {
+            font-size: 0.5em;
+            opacity: 0.7;
+        }
+
+        .opportunity-card {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #4ade80;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease;
+        }
+
+        .opportunity-card.unprofitable {
+            border-left: 5px solid #ef4444;
+            opacity: 0.8;
+        }
+
+        .opportunity-card.break-even {
+            border-left: 5px solid #fbbf24;
+            opacity: 0.9;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .opportunity-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .range-info {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .profit-info {
+            text-align: right;
+        }
+
+        .profit-amount {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        .profit-amount.negative {
+            color: #ef4444;
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .profit-amount.break-even {
+            color: #fbbf24;
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+        }
+
+        .profit-percent {
+            font-size: 1em;
+            opacity: 0.8;
+        }
+
+        .cost-info {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .portfolio {
+            margin-top: 20px;
+        }
+
+        .portfolio-title {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .portfolio-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .portfolio-item .action {
+            flex: 1;
+        }
+
+        .portfolio-item .price {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #fbbf24;
+        }
+
+        .timestamp {
+            text-align: right;
+            font-size: 0.85em;
+            opacity: 0.6;
+            margin-top: 10px;
+        }
+
+        .no-opportunities {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 1.3em;
+            opacity: 0.7;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert-badge {
+            display: inline-block;
+            background: #ef4444;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 KALSHI ARBITRAGE DASHBOARD</h1>
+            <div class="subtitle">Real-Time Partition Arbitrage Monitor</div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total Positions</div>
+                <div class="value" id="total-positions">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Priced Positions</div>
+                <div class="value" id="priced-positions">-</div>
+            </div>
+            <div class="stat-card arbitrage">
+                <div class="label">🚨 Arbitrage Found</div>
+                <div class="value" id="arbitrage-count">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Last Update</div>
+                <div class="value" id="last-update" style="font-size: 1.5em;">-</div>
+            </div>
+        </div>
+
+        <div class="opportunities-container">
+            <div class="opportunities-header">
+                <div>
+                    <span id="opportunities-title">Arbitrage Opportunities</span>
+                    <span class="alert-badge" id="alert-badge" style="display:none;">LIVE</span>
+                </div>
+            </div>
+            <div id="opportunities-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Connecting to live markets...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastArbitrageCount = 0;
+
+        function formatMoney(amount) {
+            return '$' + amount.toFixed(4);
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString('en-US');
+        }
+
+        function updateDashboard(data) {
+            const stats = data.stats;
+            const opportunities = data.opportunities;
+
+            // Update stats
+            document.getElementById('total-positions').textContent = formatNumber(stats.total_positions);
+            document.getElementById('priced-positions').textContent = formatNumber(stats.priced_positions);
+            document.getElementById('arbitrage-count').textContent = formatNumber(stats.arbitrage_count);
+            document.getElementById('last-update').textContent = stats.last_update || '-';
+
+            // Show/hide alert badge
+            const alertBadge = document.getElementById('alert-badge');
+            if (stats.arbitrage_count > 0) {
+                alertBadge.style.display = 'inline-block';
+            } else {
+                alertBadge.style.display = 'none';
+            }
+
+            // Update opportunities list
+            const opportunitiesList = document.getElementById('opportunities-list');
+
+            if (opportunities.length === 0) {
+                opportunitiesList.innerHTML = `
+                    <div class="no-opportunities pulse">
+                        Scanning for arbitrage opportunities...<br>
+                        Monitoring ${stats.priced_positions} / ${stats.total_positions} positions
+                    </div>
+                `;
+            } else {
+                let html = '';
+                let arbCount = 0;
+                let breakEvenCount = 0;
+                let unprofitableCount = 0;
+
+                opportunities.forEach((opp, index) => {
+                    const profitPercent = (opp.profit * 100).toFixed(2);
+
+                    // Determine card class and profit class
+                    let cardClass = 'opportunity-card';
+                    let profitClass = 'profit-amount';
+                    let statusLabel = '';
+
+                    if (opp.profit > 0.0001) {
+                        cardClass += '';  // profitable (default green)
+                        profitClass += '';
+                        statusLabel = '✅ ARBITRAGE';
+                        arbCount++;
+                    } else if (opp.profit >= -0.0001 && opp.profit <= 0.0001) {
+                        cardClass += ' break-even';
+                        profitClass += ' break-even';
+                        statusLabel = '⚖️ BREAK-EVEN';
+                        breakEvenCount++;
+                    } else {
+                        cardClass += ' unprofitable';
+                        profitClass += ' negative';
+                        statusLabel = '❌ LOSS';
+                        unprofitableCount++;
+                    }
+
+                    html += `
+                        <div class="${cardClass}">
+                            <div class="opportunity-header">
+                                <div class="range-info">
+                                    #${index + 1} Range: $${opp.range_lower.toLocaleString()} - $${opp.range_upper.toLocaleString()}
+                                    <div style="font-size: 0.7em; margin-top: 5px;">${statusLabel}</div>
+                                </div>
+                                <div class="profit-info">
+                                    <div class="${profitClass}">${formatMoney(opp.profit)}</div>
+                                    <div class="profit-percent">${profitPercent}%</div>
+                                    <div class="cost-info">Cost: ${formatMoney(opp.cost)}</div>
+                                </div>
+                            </div>
+                            <div class="portfolio">
+                                <div class="portfolio-title">📋 Portfolio to Execute:</div>
+                                <div class="portfolio-item">
+                                    <div class="action">
+                                        <strong>1. Lower Tail</strong><br>
+                                        Buy NO on $${opp.range_lower.toLocaleString()}+ threshold<br>
+                                        <small>${opp.lower_threshold_ticker}</small>
+                                    </div>
+                                    <div class="price">${formatMoney(opp.lower_no_ask)}</div>
+                                </div>
+                                <div class="portfolio-item">
+                                    <div class="action">
+                                        <strong>2. Body</strong><br>
+                                        Buy YES on $${opp.range_lower.toLocaleString()}-$${opp.range_upper.toLocaleString()} range<br>
+                                        <small>${opp.range_ticker}</small>
+                                    </div>
+                                    <div class="price">${formatMoney(opp.range_yes_ask)}</div>
+                                </div>
+                                <div class="portfolio-item">
+                                    <div class="action">
+                                        <strong>3. Upper Tail</strong><br>
+                                        Buy YES on $${opp.range_upper.toLocaleString()}+ threshold<br>
+                                        <small>${opp.upper_threshold_ticker}</small>
+                                    </div>
+                                    <div class="price">${formatMoney(opp.upper_yes_ask)}</div>
+                                </div>
+                            </div>
+                            <div class="timestamp">⏱️ Detected at ${opp.timestamp} EST</div>
+                        </div>
+                    `;
+                });
+
+                // Add summary header
+                let summaryHtml = `
+                    <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <strong>Live Calculations Summary:</strong><br>
+                        ✅ Profitable: ${arbCount} | ⚖️ Break-Even: ${breakEvenCount} | ❌ Unprofitable: ${unprofitableCount}
+                    </div>
+                `;
+
+                opportunitiesList.innerHTML = summaryHtml + html;
+            }
+
+            // Play sound/notification if new arbitrage found
+            if (stats.arbitrage_count > lastArbitrageCount && lastArbitrageCount > 0) {
+                // Could add audio alert here
+                console.log('🚨 New arbitrage opportunity detected!');
+            }
+            lastArbitrageCount = stats.arbitrage_count;
+        }
+
+        // Fetch data every 250ms for real-time updates
+        function fetchData() {
+            fetch('/api/opportunities')
+                .then(response => response.json())
+                .then(data => {
+                    updateDashboard(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        // Initial fetch
+        fetchData();
+
+        // Update every 250ms for real-time feel
+        setInterval(fetchData, 250);
+
+        console.log('🚀 Kalshi Arbitrage Dashboard - Live monitoring started');
+    </script>
+</body>
+</html>

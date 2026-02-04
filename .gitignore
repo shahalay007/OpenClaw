@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+# Env
+.env
+.env.*
+
+# Logs / generated
+*.log
+*.out
+brti_shared.json
+kxbtc15m_counter.txt
+current_active_event*.json
+all_exchanges_live.txt
+brti_60s_average.txt
+brti_live_price.txt
+gemini_live_price.txt
+kraken_live_price.txt
+
+# OS
+.DS_Store
