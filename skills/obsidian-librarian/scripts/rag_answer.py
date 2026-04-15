@@ -20,6 +20,8 @@ Rules:
 - Preserve technical accuracy from the source material."""
 
 
+MAX_CONTEXT_CHARS = 30_000  # ~7500 tokens — safety cap to avoid huge prompts
+
 RAG_USER_PROMPT = """Question: {question}
 
 Context from vault (ranked by relevance):
@@ -60,13 +62,18 @@ def ask(
         )
 
     context_blocks: list[str] = []
+    total_chars = 0
     for i, result in enumerate(results, 1):
         title = result.metadata.get("title", result.file_path)
-        context_blocks.append(
+        block = (
             f"--- Chunk {i} (from: {result.file_path}, similarity: {result.similarity:.3f}) ---\n"
             f"Title: {title}\n"
             f"{result.content}"
         )
+        if total_chars + len(block) > MAX_CONTEXT_CHARS:
+            break
+        context_blocks.append(block)
+        total_chars += len(block)
 
     context = "\n\n".join(context_blocks)
     prompt = RAG_USER_PROMPT.format(question=question, context=context)

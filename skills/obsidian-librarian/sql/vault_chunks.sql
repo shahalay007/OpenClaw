@@ -17,8 +17,7 @@ create index if not exists idx_vault_chunks_file_path
   on vault_chunks (file_path);
 
 create index if not exists idx_vault_chunks_embedding
-  on vault_chunks using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+  on vault_chunks using hnsw (embedding vector_cosine_ops);
 
 -- RPC: match_vault_chunks
 -- Cosine similarity search against vault_chunks embeddings.

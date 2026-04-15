@@ -58,21 +58,47 @@ def reindex_full_vault(settings: LibrarianSettings) -> int:
     client = SupabaseClient(settings.supabase_url, settings.supabase_key)
     chunks = read_all_vault_files(settings.vault_path, settings.inbox_folder)
     print(f"Read {len(chunks)} chunks from vault", file=sys.stderr)
-    return embed_and_upsert(settings, chunks, client)
+    upserted = embed_and_upsert(settings, chunks, client)
+
+    # Clean up stale chunks from files that no longer exist in the vault
+    vault_paths = {c.file_path for c in chunks}
+    _delete_stale_chunks(client, vault_paths)
+
+    return upserted
+
+
+def _delete_stale_chunks(client: SupabaseClient, current_paths: set[str]) -> None:
+    try:
+        rows = client.select("vault_chunks", columns="file_path")
+        if not isinstance(rows, list):
+            return
+        db_paths = {row["file_path"] for row in rows if "file_path" in row}
+        stale = db_paths - current_paths
+        for path in stale:
+            client.delete("vault_chunks", filters={"file_path": f"eq.{path}"})
+            print(f"  removed stale chunks for {path}", file=sys.stderr)
+    except Exception as exc:
+        print(f"  stale cleanup failed: {exc}", file=sys.stderr)
 
 
 def reindex_file(settings: LibrarianSettings, file_path: Path) -> int:
     client = SupabaseClient(settings.supabase_url, settings.supabase_key)
     relative = str(file_path.relative_to(settings.vault_path))
 
-    # Delete old chunks for this file (handles chunk count changes on re-index)
-    client.delete("vault_chunks", filters={"file_path": f"eq.{relative}"})
-
     chunks = read_vault_file(file_path, settings.vault_path)
     if not chunks:
+        # File is empty or unreadable — remove any existing chunks
+        client.delete("vault_chunks", filters={"file_path": f"eq.{relative}"})
         return 0
 
-    return embed_and_upsert(settings, chunks, client)
+    # Upsert new chunks first, then delete stale leftovers (safe ordering)
+    upserted = embed_and_upsert(settings, chunks, client)
+    new_max_index = len(chunks)
+    client.delete("vault_chunks", filters={
+        "file_path": f"eq.{relative}",
+        "chunk_index": f"gte.{new_max_index}",
+    })
+    return upserted
 
 
 if __name__ == "__main__":

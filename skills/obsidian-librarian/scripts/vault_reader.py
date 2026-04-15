@@ -91,7 +91,7 @@ def split_into_chunks(text: str, *, chunk_size: int = CHUNK_SIZE_CHARS, overlap:
         chunk = text[start:actual_end].strip()
         if chunk:
             chunks.append(chunk)
-        start = actual_end - overlap
+        start = max(0, actual_end - overlap)
         if start <= (actual_end - chunk_size):
             start = actual_end
 
@@ -148,8 +148,10 @@ def read_all_vault_files(vault_path: Path, inbox_folder: str = "_Inbox") -> list
 
 def _strip_yaml(value: str) -> str:
     clean = value.strip()
-    if clean.startswith(("'", '"')) and clean.endswith(("'", '"')) and len(clean) >= 2:
-        clean = clean[1:-1]
+    for quote in ("'", '"'):
+        if clean.startswith(quote) and clean.endswith(quote) and len(clean) >= 2:
+            clean = clean[1:-1]
+            break
     return clean.strip()
 
 

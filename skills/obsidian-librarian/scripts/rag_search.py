@@ -51,7 +51,10 @@ def search(
     for row in rows:
         meta = row.get("metadata") or {}
         if isinstance(meta, str):
-            meta = json.loads(meta)
+            try:
+                meta = json.loads(meta)
+            except (json.JSONDecodeError, TypeError):
+                meta = {}
         results.append(SearchResult(
             file_path=row["file_path"],
             chunk_index=row["chunk_index"],

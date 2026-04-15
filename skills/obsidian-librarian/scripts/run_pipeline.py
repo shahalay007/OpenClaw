@@ -103,6 +103,8 @@ def cmd_ask(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 
     if not settings.gemini_api_key:
         raise RuntimeError("Missing GEMINI_API_KEY in environment")
+    if not settings.supabase_url or not settings.supabase_key:
+        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set for RAG features")
 
     question = " ".join(args.question)
     result = ask(
@@ -136,6 +138,8 @@ def cmd_reindex(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 
     if not settings.gemini_api_key:
         raise RuntimeError("Missing GEMINI_API_KEY in environment")
+    if not settings.supabase_url or not settings.supabase_key:
+        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set for RAG features")
 
     if args.file:
         file_path = Path(args.file).expanduser().resolve()
