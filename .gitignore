@@ -8,10 +8,12 @@ __pycache__/
 # Env
 .env
 .env.*
+!.env.example
 
 # Logs / generated
 *.log
 *.out
+*.pid
 brti_shared.json
 kxbtc15m_counter.txt
 current_active_event*.json
@@ -20,6 +22,15 @@ brti_60s_average.txt
 brti_live_price.txt
 gemini_live_price.txt
 kraken_live_price.txt
+kxbtc15m_15m_refs/
+logs_*/
 
 # OS
 .DS_Store
+
+# Local-only helpers / secrets
+.kalshi_private_key.pem
+kx15m_ctl.sh
+
+# OpenClaw runtime state
+data/

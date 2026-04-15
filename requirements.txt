@@ -1,5 +1,0 @@
-kalshi-python-sync
-websockets
-cryptography
-requests
-certifi

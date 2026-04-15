@@ -1,0 +1,40 @@
+services:
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openclaw-local-openclaw:local
+    container_name: openclaw-local-openclaw-1
+    platform: linux/amd64
+    environment:
+      - HOST=0.0.0.0
+      - OPENCLAW_HOST=0.0.0.0
+      - PORT=48728
+      - OPENCLAW_GATEWAY_TOKEN=openclaw-local
+      - NODE_OPTIONS=--import=/hostinger/whatsapp-guard-register.mjs
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OBSIDIAN_VAULT_PATH=/data/.openclaw/obsidian-vault
+      - APIFY_API_KEY=${APIFY_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - KALSHI_API_KEY_ID=${KALSHI_API_KEY_ID}
+      - KALSHI_PRIVATE_KEY_PATH=/data/.openclaw/credentials/kalshi_private_key.pem
+      - WHATSAPP_NUMBER=${WHATSAPP_NUMBER}
+      - WHATSAPP_PROBE_INITIAL_DELAY_SECONDS=20
+      - WHATSAPP_PROBE_INTERVAL_SECONDS=60
+      - WHATSAPP_PROBE_TIMEOUT_SECONDS=30
+    ports:
+      - "48728:48728"
+      - "18789:18789"
+      - "18791:18791"
+    volumes:
+      - ./data:/data/.openclaw
+      - ./skills:/app/skills
+      - type: bind
+        source: "${OBSIDIAN_VAULT_PATH}"
+        target: /data/.openclaw/obsidian-vault
+      - ./server.mjs:/hostinger/server.mjs
+      - ./whatsapp-guard-register.mjs:/hostinger/whatsapp-guard-register.mjs
+      - ./whatsapp-guard-loader.mjs:/hostinger/whatsapp-guard-loader.mjs
+      - ./start-openclaw.sh:/hostinger/start-openclaw.sh
+    command: ["sh", "/hostinger/start-openclaw.sh"]
+    restart: unless-stopped
