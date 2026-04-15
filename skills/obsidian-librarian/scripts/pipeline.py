@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,7 +37,20 @@ class LibrarianPipeline:
         self.vault_index.add_concept(synthesized.title, [])
         if not keep_inbox:
             self.file_manager.remove_inbox_file(file_path)
+
+        self._try_reindex(final_path)
+
         return ProcessedNote(raw=raw, synthesized=synthesized, architected=architected, final_path=final_path)
+
+    def _try_reindex(self, file_path: Path) -> None:
+        if not self.settings.supabase_url or not self.settings.supabase_key:
+            return
+        try:
+            from vault_embedder import reindex_file
+            count = reindex_file(self.settings, file_path)
+            print(f"RAG: indexed {count} chunks from {file_path.name}", file=sys.stderr)
+        except Exception as exc:
+            print(f"RAG: indexing failed for {file_path.name}: {exc}", file=sys.stderr)
 
     @staticmethod
     def _override_h1(markdown: str, title: str) -> str:

@@ -24,6 +24,10 @@ class LibrarianSettings:
     gemini_model: str = "gemini-2.5-flash"
     debounce_seconds: float = 3.0
     categories: list[str] = field(default_factory=lambda: list(DEFAULT_CATEGORIES))
+    supabase_url: str = ""
+    supabase_key: str = ""
+    embedding_model: str = "text-embedding-004"
+    embedding_dimensions: int = 384
 
     @classmethod
     def from_env(cls) -> "LibrarianSettings":
@@ -34,6 +38,10 @@ class LibrarianSettings:
             gemini_model=os.environ.get("OBSIDIAN_GEMINI_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")),
             debounce_seconds=float(os.environ.get("OBSIDIAN_DEBOUNCE_SECONDS", "3.0")),
             categories=list(DEFAULT_CATEGORIES),
+            supabase_url=os.environ.get("SUPABASE_URL", ""),
+            supabase_key=os.environ.get("SUPABASE_KEY", ""),
+            embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-004"),
+            embedding_dimensions=int(os.environ.get("EMBEDDING_DIMENSIONS", "384")),
         )
 
     @property
