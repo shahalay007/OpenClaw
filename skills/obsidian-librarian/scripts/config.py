@@ -6,14 +6,38 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-DEFAULT_CATEGORIES = [
-    "AI_Research",
-    "Industry_News",
-    "Technical_Deep_Dives",
-    "Tools_and_Frameworks",
-    "Opinion_and_Commentary",
-    "Uncategorized",
-]
+DEFAULT_CATEGORIES = {
+    "AI_Models_and_Research": (
+        "Papers, blog posts, and discussions about model architectures "
+        "(transformers, diffusion, SSMs, etc.), training techniques, "
+        "benchmarks, datasets, and foundational ML research."
+    ),
+    "AI_Engineering": (
+        "Developer tools, frameworks, SDKs, APIs, prompt engineering, "
+        "fine-tuning guides, RAG patterns, deployment, and infrastructure "
+        "for building with AI."
+    ),
+    "AI_Agents_and_Applications": (
+        "Agentic systems, autonomous workflows, real-world AI use cases, "
+        "product launches, demos, and applied AI across industries."
+    ),
+    "AI_Industry": (
+        "Company news, funding rounds, acquisitions, partnerships, hiring, "
+        "AI policy, regulation, safety debates, and market dynamics."
+    ),
+    "Prediction_Markets": (
+        "Market mechanics, platform analysis (Kalshi, Polymarket, Metaculus), "
+        "trading strategies, event contracts, calibration, forecasting methods, "
+        "and prediction market research."
+    ),
+    "Technical_Reference": (
+        "General programming, databases, infrastructure, DevOps, and tutorials "
+        "not specific to AI or prediction markets."
+    ),
+    "Uncategorized": (
+        "Content that does not clearly fit any other category."
+    ),
+}
 
 
 @dataclass
@@ -23,7 +47,7 @@ class LibrarianSettings:
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     debounce_seconds: float = 3.0
-    categories: list[str] = field(default_factory=lambda: list(DEFAULT_CATEGORIES))
+    categories: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_CATEGORIES))
     supabase_url: str = ""
     supabase_key: str = ""
     embedding_model: str = "text-embedding-004"
@@ -37,7 +61,7 @@ class LibrarianSettings:
             gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
             gemini_model=os.environ.get("OBSIDIAN_GEMINI_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")),
             debounce_seconds=float(os.environ.get("OBSIDIAN_DEBOUNCE_SECONDS", "3.0")),
-            categories=list(DEFAULT_CATEGORIES),
+            categories=dict(DEFAULT_CATEGORIES),
             supabase_url=os.environ.get("SUPABASE_URL", ""),
             supabase_key=os.environ.get("SUPABASE_KEY", ""),
             embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-004"),

@@ -40,8 +40,11 @@ class MetadataArchitect:
     def architect(self, content: SynthesizedContent, raw_content: str | None = None) -> ArchitectOutput:
         concepts = self.vault_index.get_concepts_list()
         concept_blob = "\n".join(f"- {concept}" for concept in concepts[:500]) or "- None yet"
+        category_blob = "\n".join(
+            f"- {name}: {desc}" for name, desc in self.settings.categories.items()
+        )
         prompt = ARCHITECT_PROMPT.format(
-            categories=", ".join(self.settings.categories),
+            categories=category_blob,
             concepts=concept_blob,
             markdown_body=content.markdown_body,
         )
@@ -64,7 +67,7 @@ class MetadataArchitect:
             )
             tags = self._normalize_tags(payload.get("tags") or [])
             category = payload.get("category") or "Uncategorized"
-            if category not in self.settings.categories:
+            if category not in self.settings.categories.keys():
                 category = "Uncategorized"
             source = (payload.get("source") or "manual paste").strip()
             source_hint = self._extract_source_hint(raw_content or "")
