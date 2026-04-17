@@ -310,8 +310,12 @@ def apify_run_sync(actor_id: str, payload: dict[str, Any], *, memory_mb: int | N
 
 
 def fetch_url_source(url: str) -> tuple[str, str]:
+    return _fetch_url_source(url, visited={canonicalize_url(url)})
+
+
+def _fetch_url_source(url: str, *, visited: set[str]) -> tuple[str, str]:
     try:
-        return fetch_url_source_via_apify(url)
+        return fetch_url_source_via_apify(url, visited=visited)
     except Exception as direct_exc:
         try:
             return search_web_fallback(url)
@@ -323,11 +327,12 @@ def fetch_url_source(url: str) -> tuple[str, str]:
             ) from search_exc
 
 
-def fetch_url_source_via_apify(url: str) -> tuple[str, str]:
+def fetch_url_source_via_apify(url: str, *, visited: set[str] | None = None) -> tuple[str, str]:
     parsed_url = urllib.parse.urlparse(url)
     host = parsed_url.netloc.lower()
     if host.startswith("www."):
         host = host[4:]
+    visited = set(visited or {canonicalize_url(url)})
 
     if host in {"x.com", "twitter.com"}:
         tweet_id = extract_tweet_id(url)
@@ -337,7 +342,7 @@ def fetch_url_source_via_apify(url: str) -> tuple[str, str]:
                 {"tweetIds": [tweet_id]},
             )
             if isinstance(items, list) and items:
-                return normalize_tweet_item(items[0])
+                return normalize_tweet_item(items[0], visited=visited)
             raise RuntimeError(f"No tweet data returned for {url}")
 
     items = apify_run_sync(
@@ -345,6 +350,8 @@ def fetch_url_source_via_apify(url: str) -> tuple[str, str]:
         {
             "startUrls": [{"url": url}],
             "maxCrawlPages": 1,
+            "outputFormat": "markdown",
+            "crawlerType": "playwright:adaptive",
         },
         memory_mb=2048,
     )
@@ -450,18 +457,75 @@ def extract_tweet_id(url: str) -> str | None:
     return None
 
 
-def normalize_tweet_item(item: dict[str, Any]) -> tuple[str, str]:
+def canonicalize_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url.strip())
+    scheme = (parsed.scheme or "https").lower()
+    netloc = parsed.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    path = parsed.path or "/"
+    return urllib.parse.urlunsplit((scheme, netloc, path, parsed.query, ""))
+
+
+def extract_external_urls(item: dict[str, Any]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for candidate in item.get("externalUrls") or []:
+        if not isinstance(candidate, str):
+            continue
+        url = candidate.strip()
+        if not url:
+            continue
+        normalized = canonicalize_url(url)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(url)
+    return ordered
+
+
+def text_is_plain_url(text: str) -> bool:
+    return bool(re.fullmatch(r"https?://\S+", text.strip()))
+
+
+def expand_external_sources(urls: list[str], *, visited: set[str]) -> list[tuple[str, str, str]]:
+    expanded: list[tuple[str, str, str]] = []
+    for external_url in urls:
+        normalized = canonicalize_url(external_url)
+        if normalized in visited:
+            continue
+        try:
+            linked_title, linked_body = _fetch_url_source(
+                external_url,
+                visited=visited | {normalized},
+            )
+        except Exception:
+            continue
+        expanded.append((external_url, linked_title, linked_body))
+    return expanded
+
+
+def normalize_tweet_item(item: dict[str, Any], *, visited: set[str]) -> tuple[str, str]:
     text = str(item.get("text") or "").strip()
     if not text:
         raise RuntimeError("Tweet payload contained no text")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    title = lines[0][:120] if lines else "X Post"
     author_name = item.get("authorName") or "Unknown author"
     author_username = item.get("authorUsername") or ""
     created_at = item.get("createdAt") or ""
     likes = item.get("likes")
     replies = item.get("replies")
     url = item.get("url") or ""
+    external_urls = extract_external_urls(item)
+    expanded_sources = expand_external_sources(external_urls, visited=visited)
+
+    if lines and not text_is_plain_url(text):
+        title = lines[0][:120]
+    elif expanded_sources:
+        title = expanded_sources[0][1][:120]
+    else:
+        title = f"X Post by {author_name}"
+
     body_lines = [
         f"Source URL: {url}",
         f"Author: {author_name}" + (f" (@{author_username})" if author_username else ""),
@@ -474,6 +538,17 @@ def normalize_tweet_item(item: dict[str, Any]) -> tuple[str, str]:
         body_lines.append(f"Replies: {replies}")
     body_lines.append("")
     body_lines.append(text)
+    if external_urls:
+        body_lines.append("")
+        body_lines.append("External URLs:")
+        for external_url in external_urls:
+            body_lines.append(f"- {external_url}")
+    for external_url, linked_title, linked_body in expanded_sources:
+        body_lines.append("")
+        body_lines.append(f"## Linked Source: {linked_title}")
+        body_lines.append(f"Linked URL: {external_url}")
+        body_lines.append("")
+        body_lines.append(linked_body.strip())
     return title, "\n".join(body_lines).strip()
 
 
@@ -488,4 +563,26 @@ def normalize_page_item(item: dict[str, Any], original_url: str) -> tuple[str, s
     if not title:
         parsed = urllib.parse.urlparse(original_url)
         title = slugify(parsed.netloc + "-" + parsed.path, fallback="source").replace("-", " ").title()
+    if is_placeholder_page(title, body, original_url):
+        raise RuntimeError(f"Apify page reader returned a placeholder page for {original_url}")
     return title, body
+
+
+def is_placeholder_page(title: str, body: str, original_url: str) -> bool:
+    lowered_title = title.lower()
+    lowered_body = body.lower()
+    parsed = urllib.parse.urlparse(original_url)
+    host = parsed.netloc.lower()
+    if host.startswith("www."):
+        host = host[4:]
+
+    placeholder_markers = (
+        "page not found / x",
+        "# page not found",
+        "don’t miss what’s happening",
+        "don't miss what's happening",
+        "people on x are the first to know",
+    )
+    if host in {"x.com", "twitter.com"}:
+        return lowered_title == "page not found / x" or any(marker in lowered_body for marker in placeholder_markers)
+    return False

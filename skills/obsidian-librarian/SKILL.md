@@ -1,7 +1,7 @@
 ---
 name: obsidian-librarian
 description: Save pasted text, research notes, and blog/article URLs into an Obsidian vault through a two-pass Gemini pipeline, then search and answer questions from that vault with RAG. Use when the user asks to save something to Obsidian, file a note in the vault, convert a blog/article into a structured note, organize knowledge into interlinked markdown, search their saved notes, or says short phrases like "save this", "save it", or "save this url" when the same message contains a URL or the content to store.
-version: 0.2.1
+version: 0.2.2
 metadata: {"openclaw":{"primaryEnv":"GEMINI_API_KEY","requires":{"env":["GEMINI_API_KEY","OBSIDIAN_VAULT_PATH"],"bins":["python3","curl"]},"homepage":"https://github.com/openclaw/obsidian-librarian"}}
 ---
 
@@ -40,6 +40,7 @@ Optional:
 URL handling policy:
 - Always use Apify to read the URL first.
 - For `x.com` / `twitter.com` post URLs, use the dedicated Apify tweet actor.
+- If an X post contains linked URLs, follow those linked URLs through the same Apify-first path before falling back.
 - If direct URL reading fails, run a web-search fallback and stage the search-result snapshot instead.
 - If both stages fail, surface the full error back to OpenClaw instead of silently swallowing it.
 
