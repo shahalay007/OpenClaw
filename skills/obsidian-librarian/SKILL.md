@@ -1,7 +1,7 @@
 ---
 name: obsidian-librarian
 description: Save pasted text, research notes, and blog/article URLs into an Obsidian vault through a two-pass Gemini pipeline, then search and answer questions from that vault with RAG. Use when the user asks to save something to Obsidian, file a note in the vault, convert a blog/article into a structured note, organize knowledge into interlinked markdown, search their saved notes, or says short phrases like "save this", "save it", or "save this url" when the same message contains a URL or the content to store.
-version: 0.2.2
+version: 0.2.3
 metadata: {"openclaw":{"primaryEnv":"GEMINI_API_KEY","requires":{"env":["GEMINI_API_KEY","OBSIDIAN_VAULT_PATH"],"bins":["python3","curl"]},"homepage":"https://github.com/openclaw/obsidian-librarian"}}
 ---
 
@@ -83,5 +83,6 @@ python3 {baseDir}/scripts/run_pipeline.py --inbox-file /data/.openclaw/obsidian-
 - For long pasted text, prefer writing it to a temp file under `/data/.openclaw/workspace/` and using `--text-file`.
 - Use `--title "Custom Title"` if the user wants an explicit note title override.
 - Use `--keep-inbox` only when debugging. Normal behavior is to clean up the staged source after success.
+- X status URLs preserve deterministic post metadata and captured post content instead of relying on a generic article-style rewrite.
 - The pipeline does forward-linking only in v1. Existing notes are not modified.
 - URL ingestion requires `APIFY_API_KEY` in the container environment.
