@@ -7,7 +7,7 @@ from typing import Any
 
 from config import LibrarianSettings
 from embedder import embed_single
-from supabase_client import SupabaseClient
+from rag_backend import match_vault_chunks
 
 
 @dataclass
@@ -24,7 +24,7 @@ def search(
     query: str,
     *,
     category_filter: str | None = None,
-    threshold: float = 0.5,
+    threshold: float = 0.65,
     limit: int = 5,
 ) -> list[SearchResult]:
     query_embedding = embed_single(
@@ -34,18 +34,13 @@ def search(
         dimensions=settings.embedding_dimensions,
     )
 
-    client = SupabaseClient(settings.supabase_url, settings.supabase_key)
-    params: dict[str, Any] = {
-        "query_embedding": json.dumps(query_embedding),
-        "match_threshold": threshold,
-        "match_count": limit,
-    }
-    if category_filter:
-        params["filter_category"] = category_filter
-
-    rows = client.rpc("match_vault_chunks", params)
-    if not isinstance(rows, list):
-        return []
+    rows = match_vault_chunks(
+        settings,
+        query_embedding=query_embedding,
+        threshold=threshold,
+        limit=limit,
+        category_filter=category_filter,
+    )
 
     results: list[SearchResult] = []
     for row in rows:

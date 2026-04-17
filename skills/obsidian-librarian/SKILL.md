@@ -1,6 +1,8 @@
 ---
 name: obsidian-librarian
-description: Save pasted text, research notes, and blog/article URLs into an Obsidian vault through a two-pass Gemini pipeline. Use when the user asks to save something to Obsidian, file a note in the vault, convert a blog/article into a structured note, organize knowledge into interlinked markdown, or says short phrases like "save this", "save it", or "save this url" when the same message contains a URL or the content to store.
+description: Save pasted text, research notes, and blog/article URLs into an Obsidian vault through a two-pass Gemini pipeline, then search and answer questions from that vault with RAG. Use when the user asks to save something to Obsidian, file a note in the vault, convert a blog/article into a structured note, organize knowledge into interlinked markdown, search their saved notes, or says short phrases like "save this", "save it", or "save this url" when the same message contains a URL or the content to store.
+version: 0.2.0
+metadata: {"openclaw":{"primaryEnv":"GEMINI_API_KEY","requires":{"env":["GEMINI_API_KEY","OBSIDIAN_VAULT_PATH"],"bins":["python3","curl"]},"homepage":"https://github.com/openclaw/obsidian-librarian"}}
 ---
 
 # Obsidian Librarian
@@ -14,6 +16,26 @@ Trigger shortcuts:
 - If the intent is ambiguous between saving to the local filesystem versus saving to the knowledge vault, prefer the Obsidian vault when the content looks like a note, article, research snippet, or social post.
 
 The vault is mounted in the container at `/data/.openclaw/obsidian-vault`. Raw inputs are staged in `/data/.openclaw/obsidian-vault/_Inbox`, then processed into category folders.
+
+## Environment
+
+Required:
+- `GEMINI_API_KEY`: Gemini API key used for both ingest and RAG answer generation.
+- `OBSIDIAN_VAULT_PATH`: Absolute path to the mounted Obsidian vault.
+
+Conditional:
+- `APIFY_API_KEY`: Required for URL ingestion.
+
+Optional:
+- `OBSIDIAN_INBOX_FOLDER`: Override the inbox folder name. Default: `_Inbox`.
+- `OBSIDIAN_GEMINI_MODEL`: Primary model override for librarian operations.
+- `GEMINI_MODEL`: Fallback model name when `OBSIDIAN_GEMINI_MODEL` is unset.
+- `OBSIDIAN_DEBOUNCE_SECONDS`: Watcher debounce interval. Default: `3.0`.
+- `OBSIDIAN_RAG_INDEX_PATH`: Override the local JSON RAG index path.
+- `SUPABASE_URL`: Enable Supabase-backed vector storage.
+- `SUPABASE_KEY`: Supabase API key for vector storage.
+- `EMBEDDING_MODEL`: Embedding model override. Default: `gemini-embedding-001`.
+- `EMBEDDING_DIMENSIONS`: Embedding size. Default: `384`.
 
 URL handling policy:
 - Always use Apify to read the URL first.

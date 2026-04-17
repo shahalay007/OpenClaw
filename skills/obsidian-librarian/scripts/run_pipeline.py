@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask_parser = subparsers.add_parser("ask", help="Ask a question against your vault using RAG")
     ask_parser.add_argument("question", nargs="+", help="The question to ask")
     ask_parser.add_argument("--category", default=None, help="Filter results to a specific category")
-    ask_parser.add_argument("--threshold", type=float, default=0.5, help="Minimum similarity threshold (default 0.5)")
+    ask_parser.add_argument("--threshold", type=float, default=0.65, help="Minimum similarity threshold (default 0.65)")
     ask_parser.add_argument("--limit", type=int, default=5, help="Max chunks to retrieve (default 5)")
     ask_parser.add_argument("--print-json", action="store_true", help="Print JSON output instead of formatted text")
 
@@ -103,8 +103,6 @@ def cmd_ask(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 
     if not settings.gemini_api_key:
         raise RuntimeError("Missing GEMINI_API_KEY in environment")
-    if not settings.supabase_url or not settings.supabase_key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set for RAG features")
 
     question = " ".join(args.question)
     result = ask(
@@ -138,8 +136,6 @@ def cmd_reindex(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 
     if not settings.gemini_api_key:
         raise RuntimeError("Missing GEMINI_API_KEY in environment")
-    if not settings.supabase_url or not settings.supabase_key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set for RAG features")
 
     if args.file:
         file_path = Path(args.file).expanduser().resolve()

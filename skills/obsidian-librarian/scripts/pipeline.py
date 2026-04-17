@@ -43,8 +43,6 @@ class LibrarianPipeline:
         return ProcessedNote(raw=raw, synthesized=synthesized, architected=architected, final_path=final_path)
 
     def _try_reindex(self, file_path: Path) -> None:
-        if not self.settings.supabase_url or not self.settings.supabase_key:
-            return
         try:
             from vault_embedder import reindex_file
             count = reindex_file(self.settings, file_path)

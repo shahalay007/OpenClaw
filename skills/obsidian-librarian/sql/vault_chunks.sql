@@ -25,7 +25,7 @@ create index if not exists idx_vault_chunks_embedding
 
 create or replace function match_vault_chunks(
   query_embedding vector(384),
-  match_threshold float default 0.5,
+  match_threshold float default 0.65,
   match_count int default 5,
   filter_category text default null
 )

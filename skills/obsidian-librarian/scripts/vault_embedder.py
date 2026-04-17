@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 from config import LibrarianSettings
 from embedder import embed_texts
-from supabase_client import SupabaseClient
+from rag_backend import delete_vault_chunks, list_vault_chunk_paths, upsert_vault_chunks
 from vault_reader import VaultChunk, read_all_vault_files, read_vault_file
 
 BATCH_SIZE = 50
@@ -18,15 +17,14 @@ def _chunk_to_row(chunk: VaultChunk, embedding: list[float]) -> dict:
         "file_path": chunk.file_path,
         "chunk_index": chunk.chunk_index,
         "content": chunk.content,
-        "embedding": json.dumps(embedding),
-        "metadata": json.dumps(chunk.metadata),
+        "embedding": embedding,
+        "metadata": chunk.metadata,
     }
 
 
 def embed_and_upsert(
     settings: LibrarianSettings,
     chunks: list[VaultChunk],
-    client: SupabaseClient,
 ) -> int:
     if not chunks:
         return 0
@@ -47,7 +45,7 @@ def embed_and_upsert(
             _chunk_to_row(chunk, emb)
             for chunk, emb in zip(batch, embeddings)
         ]
-        client.upsert("vault_chunks", rows, on_conflict="file_path,chunk_index")
+        upsert_vault_chunks(settings, rows)
         upserted += len(rows)
         print(f"  upserted {upserted}/{len(chunks)} chunks", file=sys.stderr)
 
@@ -55,49 +53,40 @@ def embed_and_upsert(
 
 
 def reindex_full_vault(settings: LibrarianSettings) -> int:
-    client = SupabaseClient(settings.supabase_url, settings.supabase_key)
     chunks = read_all_vault_files(settings.vault_path, settings.inbox_folder)
     print(f"Read {len(chunks)} chunks from vault", file=sys.stderr)
-    upserted = embed_and_upsert(settings, chunks, client)
+    upserted = embed_and_upsert(settings, chunks)
 
     # Clean up stale chunks from files that no longer exist in the vault
     vault_paths = {c.file_path for c in chunks}
-    _delete_stale_chunks(client, vault_paths)
+    _delete_stale_chunks(settings, vault_paths)
 
     return upserted
 
 
-def _delete_stale_chunks(client: SupabaseClient, current_paths: set[str]) -> None:
+def _delete_stale_chunks(settings: LibrarianSettings, current_paths: set[str]) -> None:
     try:
-        rows = client.select("vault_chunks", columns="file_path")
-        if not isinstance(rows, list):
-            return
-        db_paths = {row["file_path"] for row in rows if "file_path" in row}
-        stale = db_paths - current_paths
+        stale = list_vault_chunk_paths(settings) - current_paths
         for path in stale:
-            client.delete("vault_chunks", filters={"file_path": f"eq.{path}"})
+            delete_vault_chunks(settings, file_path=path)
             print(f"  removed stale chunks for {path}", file=sys.stderr)
     except Exception as exc:
         print(f"  stale cleanup failed: {exc}", file=sys.stderr)
 
 
 def reindex_file(settings: LibrarianSettings, file_path: Path) -> int:
-    client = SupabaseClient(settings.supabase_url, settings.supabase_key)
     relative = str(file_path.relative_to(settings.vault_path))
 
     chunks = read_vault_file(file_path, settings.vault_path)
     if not chunks:
         # File is empty or unreadable — remove any existing chunks
-        client.delete("vault_chunks", filters={"file_path": f"eq.{relative}"})
+        delete_vault_chunks(settings, file_path=relative)
         return 0
 
     # Upsert new chunks first, then delete stale leftovers (safe ordering)
-    upserted = embed_and_upsert(settings, chunks, client)
+    upserted = embed_and_upsert(settings, chunks)
     new_max_index = len(chunks)
-    client.delete("vault_chunks", filters={
-        "file_path": f"eq.{relative}",
-        "chunk_index": f"gte.{new_max_index}",
-    })
+    delete_vault_chunks(settings, file_path=relative, chunk_index_gte=new_max_index)
     return upserted
 
 

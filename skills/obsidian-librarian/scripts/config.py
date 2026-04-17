@@ -50,22 +50,27 @@ class LibrarianSettings:
     categories: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_CATEGORIES))
     supabase_url: str = ""
     supabase_key: str = ""
-    embedding_model: str = "text-embedding-004"
+    embedding_model: str = "gemini-embedding-001"
     embedding_dimensions: int = 384
+    rag_index_path_override: str = ""
 
     @classmethod
     def from_env(cls) -> "LibrarianSettings":
+        def env(name: str, default: str) -> str:
+            return os.environ.get(name) or default
+
         return cls(
-            obsidian_vault_path=os.environ.get("OBSIDIAN_VAULT_PATH", "~/Desktop/Vault"),
-            inbox_folder=os.environ.get("OBSIDIAN_INBOX_FOLDER", "_Inbox"),
-            gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
-            gemini_model=os.environ.get("OBSIDIAN_GEMINI_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")),
-            debounce_seconds=float(os.environ.get("OBSIDIAN_DEBOUNCE_SECONDS", "3.0")),
+            obsidian_vault_path=env("OBSIDIAN_VAULT_PATH", "~/Desktop/Vault"),
+            inbox_folder=env("OBSIDIAN_INBOX_FOLDER", "_Inbox"),
+            gemini_api_key=env("GEMINI_API_KEY", ""),
+            gemini_model=env("OBSIDIAN_GEMINI_MODEL", env("GEMINI_MODEL", "gemini-2.5-flash")),
+            debounce_seconds=float(env("OBSIDIAN_DEBOUNCE_SECONDS", "3.0")),
             categories=dict(DEFAULT_CATEGORIES),
-            supabase_url=os.environ.get("SUPABASE_URL", ""),
-            supabase_key=os.environ.get("SUPABASE_KEY", ""),
-            embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-004"),
-            embedding_dimensions=int(os.environ.get("EMBEDDING_DIMENSIONS", "384")),
+            supabase_url=env("SUPABASE_URL", ""),
+            supabase_key=env("SUPABASE_KEY", ""),
+            embedding_model=env("EMBEDDING_MODEL", "gemini-embedding-001"),
+            embedding_dimensions=int(env("EMBEDDING_DIMENSIONS", "384")),
+            rag_index_path_override=env("OBSIDIAN_RAG_INDEX_PATH", ""),
         )
 
     @property
@@ -75,3 +80,13 @@ class LibrarianSettings:
     @property
     def inbox_path(self) -> Path:
         return self.vault_path / self.inbox_folder
+
+    @property
+    def rag_index_path(self) -> Path:
+        if self.rag_index_path_override:
+            return Path(self.rag_index_path_override).expanduser().resolve()
+        return self.vault_path / ".obsidian-librarian" / "vault_chunks.json"
+
+    @property
+    def use_supabase_rag(self) -> bool:
+        return bool(self.supabase_url and self.supabase_key)

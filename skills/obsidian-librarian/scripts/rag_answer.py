@@ -43,7 +43,7 @@ def ask(
     question: str,
     *,
     category_filter: str | None = None,
-    threshold: float = 0.5,
+    threshold: float = 0.65,
     limit: int = 5,
 ) -> RAGAnswer:
     results = search(
