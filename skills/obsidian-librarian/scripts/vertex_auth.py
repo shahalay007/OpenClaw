@@ -106,8 +106,24 @@ def _exchange_jwt_for_token(sa: dict) -> tuple[str, float]:
         }
     ).encode("utf-8")
     token_url = sa.get("token_uri") or OAUTH_TOKEN_URL
+    return _post_token_request(token_url, body)
+
+
+def _exchange_refresh_token(user: dict) -> tuple[str, float]:
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "refresh_token",
+            "client_id": user["client_id"],
+            "client_secret": user["client_secret"],
+            "refresh_token": user["refresh_token"],
+        }
+    ).encode("utf-8")
+    return _post_token_request(OAUTH_TOKEN_URL, body)
+
+
+def _post_token_request(url: str, body: bytes) -> tuple[str, float]:
     request = urllib.request.Request(
-        token_url,
+        url,
         data=body,
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
