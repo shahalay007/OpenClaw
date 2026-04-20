@@ -149,8 +149,11 @@ def get_vertex_access_token(credentials_path: str) -> str:
             and time.time() < _token_cache["expires_at"]
         ):
             return _token_cache["token"]
-        sa = _load_service_account(credentials_path)
-        token, expires_at = _exchange_jwt_for_token(sa)
+        creds = _load_credentials(credentials_path)
+        if creds.get("type") == "authorized_user":
+            token, expires_at = _exchange_refresh_token(creds)
+        else:
+            token, expires_at = _exchange_jwt_for_token(creds)
         _token_cache["token"] = token
         _token_cache["expires_at"] = expires_at
         _token_cache["creds_path"] = credentials_path
