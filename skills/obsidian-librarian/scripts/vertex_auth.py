@@ -122,14 +122,31 @@ def _exchange_refresh_token(user: dict) -> tuple[str, float]:
 
 
 def _post_token_request(url: str, body: bytes) -> tuple[str, float]:
-    request = urllib.request.Request(
-        url,
-        data=body,
-        method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    # Use curl via subprocess so this module works even when the ambient
+    # Python install lacks trusted roots (e.g. a fresh python.org install
+    # on macOS) — matches the curl fallback in common.http_request.
+    result = subprocess.run(
+        [
+            "curl",
+            "-fsSL",
+            "--max-time",
+            "30",
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/x-www-form-urlencoded",
+            "--data-binary",
+            "@-",
+            url,
+        ],
+        input=body,
+        capture_output=True,
+        check=False,
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        raise RuntimeError(f"curl failed calling {url}: {stderr}")
+    payload = json.loads(result.stdout.decode("utf-8"))
     if "access_token" not in payload:
         raise RuntimeError(f"Token exchange response missing access_token: {payload}")
     expires_in = int(payload.get("expires_in", 3600))
