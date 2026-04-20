@@ -53,8 +53,11 @@ def cmd_ingest(args: argparse.Namespace, settings: LibrarianSettings) -> None:
     settings.vault_path.mkdir(parents=True, exist_ok=True)
     settings.inbox_path.mkdir(parents=True, exist_ok=True)
 
-    if not settings.gemini_api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY in environment")
+    if not settings.gemini_api_key and not settings.use_vertex:
+        raise RuntimeError(
+            "Missing Gemini credentials: set GEMINI_API_KEY, or VERTEX_PROJECT_ID "
+            "plus GOOGLE_APPLICATION_CREDENTIALS for Vertex AI"
+        )
 
     if args.inbox_file:
         inbox_path = Path(args.inbox_file).expanduser().resolve()
@@ -101,8 +104,11 @@ def cmd_ingest(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 def cmd_ask(args: argparse.Namespace, settings: LibrarianSettings) -> None:
     from rag_answer import ask, format_answer
 
-    if not settings.gemini_api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY in environment")
+    if not settings.gemini_api_key and not settings.use_vertex:
+        raise RuntimeError(
+            "Missing Gemini credentials: set GEMINI_API_KEY, or VERTEX_PROJECT_ID "
+            "plus GOOGLE_APPLICATION_CREDENTIALS for Vertex AI"
+        )
 
     question = " ".join(args.question)
     result = ask(
@@ -134,8 +140,11 @@ def cmd_ask(args: argparse.Namespace, settings: LibrarianSettings) -> None:
 def cmd_reindex(args: argparse.Namespace, settings: LibrarianSettings) -> None:
     from vault_embedder import reindex_file, reindex_full_vault
 
-    if not settings.gemini_api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY in environment")
+    if not settings.gemini_api_key and not settings.use_vertex:
+        raise RuntimeError(
+            "Missing Gemini credentials: set GEMINI_API_KEY, or VERTEX_PROJECT_ID "
+            "plus GOOGLE_APPLICATION_CREDENTIALS for Vertex AI"
+        )
 
     if args.file:
         file_path = Path(args.file).expanduser().resolve()

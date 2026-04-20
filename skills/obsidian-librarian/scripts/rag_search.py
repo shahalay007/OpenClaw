@@ -32,6 +32,9 @@ def search(
         text=query,
         model=settings.embedding_model,
         dimensions=settings.embedding_dimensions,
+        vertex_project=settings.vertex_project_id or None,
+        vertex_location=settings.vertex_location or None,
+        vertex_credentials=settings.google_application_credentials or None,
     )
 
     rows = match_vault_chunks(

@@ -30,6 +30,9 @@ class ContentSynthesizer:
                     model=self.settings.gemini_model,
                     prompt=prompt,
                     temperature=0.3,
+                    vertex_project=self.settings.vertex_project_id or None,
+                    vertex_location=self.settings.vertex_location or None,
+                    vertex_credentials=self.settings.google_application_credentials or None,
                 ).strip()
                 title = self._extract_title(markdown) or self._fallback_title(raw)
                 markdown = self._ensure_h1(markdown, title)

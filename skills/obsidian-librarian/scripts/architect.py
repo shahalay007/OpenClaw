@@ -64,6 +64,9 @@ class MetadataArchitect:
                 prompt=prompt,
                 schema=ARCHITECT_SCHEMA,
                 temperature=0.2,
+                vertex_project=self.settings.vertex_project_id or None,
+                vertex_location=self.settings.vertex_location or None,
+                vertex_credentials=self.settings.google_application_credentials or None,
             )
             tags = self._normalize_tags(payload.get("tags") or [])
             category = payload.get("category") or "Uncategorized"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -17,6 +18,30 @@ from typing import Any
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 APIFY_API_BASE = "https://api.apify.com/v2"
+
+
+def build_vertex_model_url(
+    *,
+    project_id: str,
+    location: str,
+    model: str,
+    action: str,
+) -> str:
+    clean_model = model.removeprefix("models/")
+    return (
+        f"https://{urllib.parse.quote(location)}-aiplatform.googleapis.com/v1"
+        f"/projects/{urllib.parse.quote(project_id)}"
+        f"/locations/{urllib.parse.quote(location)}"
+        f"/publishers/google/models/{urllib.parse.quote(clean_model)}:{action}"
+    )
+
+
+def build_gemini_model_url(*, api_key: str, model: str, action: str) -> str:
+    clean_model = model.removeprefix("models/")
+    return (
+        f"{GEMINI_API_BASE}/models/{urllib.parse.quote(clean_model)}:{action}"
+        f"?key={urllib.parse.quote(api_key)}"
+    )
 
 
 def ensure_parent(path: Path) -> None:
@@ -168,12 +193,23 @@ def gemini_generate_text(
     temperature: float = 0.4,
     system_instruction: str | None = None,
     retries: int = 0,
+    vertex_project: str | None = None,
+    vertex_location: str | None = None,
+    vertex_credentials: str | None = None,
 ) -> str:
-    clean_model = model.removeprefix("models/")
-    url = (
-        f"{GEMINI_API_BASE}/models/{urllib.parse.quote(clean_model)}:generateContent"
-        f"?key={urllib.parse.quote(api_key)}"
-    )
+    use_vertex = bool(vertex_project and vertex_credentials)
+    if use_vertex:
+        url = build_vertex_model_url(
+            project_id=vertex_project,
+            location=vertex_location or "us-central1",
+            model=model,
+            action="generateContent",
+        )
+        from vertex_auth import get_vertex_access_token
+        headers = {"Authorization": f"Bearer {get_vertex_access_token(vertex_credentials)}"}
+    else:
+        url = build_gemini_model_url(api_key=api_key, model=model, action="generateContent")
+        headers = None
     payload: dict[str, Any] = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -187,7 +223,7 @@ def gemini_generate_text(
     while True:
         attempt += 1
         try:
-            response = http_json_request(url, method="POST", json_body=payload, timeout=180)
+            response = http_json_request(url, method="POST", headers=headers, json_body=payload, timeout=180)
             candidates = response.get("candidates") or []
             for candidate in candidates:
                 parts = candidate.get("content", {}).get("parts", [])
@@ -210,12 +246,23 @@ def gemini_generate_json(
     schema: dict[str, Any],
     temperature: float = 0.2,
     retries: int = 0,
+    vertex_project: str | None = None,
+    vertex_location: str | None = None,
+    vertex_credentials: str | None = None,
 ) -> Any:
-    clean_model = model.removeprefix("models/")
-    url = (
-        f"{GEMINI_API_BASE}/models/{urllib.parse.quote(clean_model)}:generateContent"
-        f"?key={urllib.parse.quote(api_key)}"
-    )
+    use_vertex = bool(vertex_project and vertex_credentials)
+    if use_vertex:
+        url = build_vertex_model_url(
+            project_id=vertex_project,
+            location=vertex_location or "us-central1",
+            model=model,
+            action="generateContent",
+        )
+        from vertex_auth import get_vertex_access_token
+        headers = {"Authorization": f"Bearer {get_vertex_access_token(vertex_credentials)}"}
+    else:
+        url = build_gemini_model_url(api_key=api_key, model=model, action="generateContent")
+        headers = None
     payload: dict[str, Any] = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -229,7 +276,7 @@ def gemini_generate_json(
     while True:
         attempt += 1
         try:
-            response = http_json_request(url, method="POST", json_body=payload, timeout=180)
+            response = http_json_request(url, method="POST", headers=headers, json_body=payload, timeout=180)
             candidates = response.get("candidates") or []
             for candidate in candidates:
                 parts = candidate.get("content", {}).get("parts", [])
@@ -314,6 +361,13 @@ def fetch_url_source(url: str) -> tuple[str, str]:
 
 
 def _fetch_url_source(url: str, *, visited: set[str]) -> tuple[str, str]:
+    resolved = resolve_redirects(url)
+    if resolved and resolved != url:
+        resolved_canonical = canonicalize_url(resolved)
+        if resolved_canonical in visited:
+            raise RuntimeError(f"Resolved URL already visited: {resolved}")
+        visited = visited | {resolved_canonical}
+        url = resolved
     try:
         return fetch_url_source_via_apify(url, visited=visited)
     except Exception as direct_exc:
@@ -325,6 +379,40 @@ def _fetch_url_source(url: str, *, visited: set[str]) -> tuple[str, str]:
                 f"Apify direct read error: {direct_exc}. "
                 f"Web search fallback error: {search_exc}"
             ) from search_exc
+
+
+def resolve_redirects(url: str, *, max_hops: int = 5, timeout: float = 10.0) -> str:
+    parsed = urllib.parse.urlparse(url)
+    host = parsed.netloc.lower()
+    if host.startswith("www."):
+        host = host[4:]
+    shortener_hosts = {"t.co", "bit.ly", "buff.ly", "ow.ly", "tinyurl.com", "goo.gl", "lnkd.in"}
+    if host not in shortener_hosts:
+        return url
+
+    current = url
+    for _ in range(max_hops):
+        try:
+            request = urllib.request.Request(current, method="HEAD", headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                final = response.geturl()
+        except Exception:
+            try:
+                request = urllib.request.Request(current, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    final = response.geturl()
+            except Exception:
+                return current
+        if final == current:
+            return final
+        current = final
+        next_parsed = urllib.parse.urlparse(current)
+        next_host = next_parsed.netloc.lower()
+        if next_host.startswith("www."):
+            next_host = next_host[4:]
+        if next_host not in shortener_hosts:
+            return current
+    return current
 
 
 def fetch_url_source_via_apify(url: str, *, visited: set[str] | None = None) -> tuple[str, str]:
@@ -464,23 +552,38 @@ def canonicalize_url(url: str) -> str:
     if netloc.startswith("www."):
         netloc = netloc[4:]
     path = parsed.path or "/"
-    return urllib.parse.urlunsplit((scheme, netloc, path, parsed.query, ""))
+    query = parsed.query
+    if netloc in {"x.com", "twitter.com"}:
+        status_match = re.match(r"^(/[^/]+/status/\d+)", path)
+        if status_match:
+            path = status_match.group(1)
+            query = ""
+    return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
 
 
 def extract_external_urls(item: dict[str, Any]) -> list[str]:
     seen: set[str] = set()
     ordered: list[str] = []
-    for candidate in item.get("externalUrls") or []:
+
+    def _add(candidate: Any) -> None:
         if not isinstance(candidate, str):
-            continue
-        url = candidate.strip()
+            return
+        url = candidate.strip().rstrip(".,);]")
         if not url:
-            continue
+            return
         normalized = canonicalize_url(url)
         if normalized in seen:
-            continue
+            return
         seen.add(normalized)
         ordered.append(url)
+
+    for candidate in item.get("externalUrls") or []:
+        _add(candidate)
+
+    text = str(item.get("text") or "")
+    for match in re.findall(r"https?://[^\s<>\"']+", text):
+        _add(match)
+
     return ordered
 
 
@@ -506,9 +609,11 @@ def expand_external_sources(urls: list[str], *, visited: set[str]) -> list[tuple
 
 
 def normalize_tweet_item(item: dict[str, Any], *, visited: set[str]) -> tuple[str, str]:
-    text = str(item.get("text") or "").strip()
+    raw_text = str(item.get("text") or "")
+    text = html.unescape(raw_text).strip()
     if not text:
         raise RuntimeError("Tweet payload contained no text")
+    item = {**item, "text": text}
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     author_name = item.get("authorName") or "Unknown author"
     author_username = item.get("authorUsername") or ""
@@ -571,10 +676,6 @@ def normalize_page_item(item: dict[str, Any], original_url: str) -> tuple[str, s
 def is_placeholder_page(title: str, body: str, original_url: str) -> bool:
     lowered_title = title.lower()
     lowered_body = body.lower()
-    parsed = urllib.parse.urlparse(original_url)
-    host = parsed.netloc.lower()
-    if host.startswith("www."):
-        host = host[4:]
 
     placeholder_markers = (
         "page not found / x",
@@ -583,6 +684,8 @@ def is_placeholder_page(title: str, body: str, original_url: str) -> bool:
         "don't miss what's happening",
         "people on x are the first to know",
     )
-    if host in {"x.com", "twitter.com"}:
-        return lowered_title == "page not found / x" or any(marker in lowered_body for marker in placeholder_markers)
+    if lowered_title == "page not found / x":
+        return True
+    if any(marker in lowered_body for marker in placeholder_markers):
+        return True
     return False

@@ -46,13 +46,15 @@ class LibrarianSettings:
     inbox_folder: str = "_Inbox"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
-    debounce_seconds: float = 3.0
     categories: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_CATEGORIES))
     supabase_url: str = ""
     supabase_key: str = ""
     embedding_model: str = "gemini-embedding-001"
     embedding_dimensions: int = 384
     rag_index_path_override: str = ""
+    vertex_project_id: str = ""
+    vertex_location: str = "us-central1"
+    google_application_credentials: str = ""
 
     @classmethod
     def from_env(cls) -> "LibrarianSettings":
@@ -64,13 +66,15 @@ class LibrarianSettings:
             inbox_folder=env("OBSIDIAN_INBOX_FOLDER", "_Inbox"),
             gemini_api_key=env("GEMINI_API_KEY", ""),
             gemini_model=env("OBSIDIAN_GEMINI_MODEL", env("GEMINI_MODEL", "gemini-2.5-flash")),
-            debounce_seconds=float(env("OBSIDIAN_DEBOUNCE_SECONDS", "3.0")),
             categories=dict(DEFAULT_CATEGORIES),
             supabase_url=env("SUPABASE_URL", ""),
             supabase_key=env("SUPABASE_KEY", ""),
             embedding_model=env("EMBEDDING_MODEL", "gemini-embedding-001"),
             embedding_dimensions=int(env("EMBEDDING_DIMENSIONS", "384")),
             rag_index_path_override=env("OBSIDIAN_RAG_INDEX_PATH", ""),
+            vertex_project_id=env("VERTEX_PROJECT_ID", ""),
+            vertex_location=env("VERTEX_LOCATION", "us-central1"),
+            google_application_credentials=env("GOOGLE_APPLICATION_CREDENTIALS", ""),
         )
 
     @property
@@ -90,3 +94,7 @@ class LibrarianSettings:
     @property
     def use_supabase_rag(self) -> bool:
         return bool(self.supabase_url and self.supabase_key)
+
+    @property
+    def use_vertex(self) -> bool:
+        return bool(self.vertex_project_id and self.google_application_credentials)

@@ -39,6 +39,9 @@ def embed_and_upsert(
             texts=texts,
             model=settings.embedding_model,
             dimensions=settings.embedding_dimensions,
+            vertex_project=settings.vertex_project_id or None,
+            vertex_location=settings.vertex_location or None,
+            vertex_credentials=settings.google_application_credentials or None,
         )
 
         rows = [
@@ -92,7 +95,7 @@ def reindex_file(settings: LibrarianSettings, file_path: Path) -> int:
 
 if __name__ == "__main__":
     settings = LibrarianSettings.from_env()
-    if not settings.gemini_api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY")
+    if not settings.gemini_api_key and not settings.use_vertex:
+        raise RuntimeError("Missing GEMINI_API_KEY or Vertex credentials")
     total = reindex_full_vault(settings)
     print(f"Done. Indexed {total} chunks.", file=sys.stderr)

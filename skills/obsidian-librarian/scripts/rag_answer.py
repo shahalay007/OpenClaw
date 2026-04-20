@@ -85,6 +85,9 @@ def ask(
         system_instruction=RAG_SYSTEM_PROMPT,
         temperature=0.3,
         retries=2,
+        vertex_project=settings.vertex_project_id or None,
+        vertex_location=settings.vertex_location or None,
+        vertex_credentials=settings.google_application_credentials or None,
     )
 
     return RAGAnswer(answer=answer_text.strip(), sources=results, query=question)
