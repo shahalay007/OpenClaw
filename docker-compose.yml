@@ -18,6 +18,13 @@ services:
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - KALSHI_API_KEY_ID=${KALSHI_API_KEY_ID}
       - KALSHI_PRIVATE_KEY_PATH=/data/.openclaw/credentials/kalshi_private_key.pem
+      - GOOGLE_APPLICATION_CREDENTIALS=/data/.openclaw/credentials/gcp-adc.json
+      - GOOGLE_CLOUD_PROJECT=gen-lang-client-0989100918
+      - GOOGLE_CLOUD_LOCATION=us-central1
+      - ANTHROPIC_VERTEX_PROJECT_ID=gen-lang-client-0989100918
+      - CLOUD_ML_REGION=us-east5
+      - VERTEX_PROJECT_ID=gen-lang-client-0989100918
+      - VERTEX_LOCATION=us-central1
       - WHATSAPP_NUMBER=${WHATSAPP_NUMBER}
       - WHATSAPP_PROBE_INITIAL_DELAY_SECONDS=20
       - WHATSAPP_PROBE_INTERVAL_SECONDS=60
